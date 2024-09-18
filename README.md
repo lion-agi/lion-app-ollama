@@ -1,1 +1,1 @@
-# lion-app-openai
+# lion-app-ollama
