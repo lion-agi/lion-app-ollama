@@ -1,6 +1,6 @@
 from typing import Optional
 from pydantic import Field
-from ..data_models import OllamaEndpointRequestBody
+from ..data_models import OllamaEndpointRequestBody, OllamaEndpointResponseBody
 
 
 class OllamaCreateModelRequestBody(OllamaEndpointRequestBody):
@@ -14,3 +14,7 @@ class OllamaCreateModelRequestBody(OllamaEndpointRequestBody):
                     "rather than a stream of objects")
 
     path: Optional[str] = Field(None, description="path to the Modelfile")
+
+
+class OllamaCreateModelResponseBody(OllamaEndpointResponseBody):
+    status: str = Field(None)

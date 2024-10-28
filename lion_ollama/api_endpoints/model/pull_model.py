@@ -1,6 +1,6 @@
 from typing import Optional
 from pydantic import Field
-from ..data_models import OllamaEndpointRequestBody
+from ..data_models import OllamaEndpointRequestBody, OllamaEndpointResponseBody
 
 
 class OllamaPullModelRequestBody(OllamaEndpointRequestBody):
@@ -16,3 +16,13 @@ class OllamaPullModelRequestBody(OllamaEndpointRequestBody):
         description="If 'false' the response will be returned as a single response object, "
                     "rather than a stream of objects"
     )
+
+
+class OllamaPullModelResponseBody(OllamaEndpointResponseBody):
+    status: str = Field(None)
+
+    digest: str = Field(None)
+
+    total: int = Field(None)
+
+    completed: int = Field(None)

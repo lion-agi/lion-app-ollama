@@ -2,6 +2,7 @@ import aiohttp
 import json
 from pydantic import BaseModel, Field
 from .data_models import OllamaEndpointRequestBody
+from .match_response import match_response
 
 
 class OllamaRequest(BaseModel):
@@ -13,16 +14,30 @@ class OllamaRequest(BaseModel):
     def base_url(self):
         return "http://localhost:11434/api/"
 
-    async def invoke(self,
-                     json_data: OllamaEndpointRequestBody = None,
-                     output_file: str = None,
-                     with_response_header: bool = False):
+    async def invoke(
+            self,
+            json_data: OllamaEndpointRequestBody = None,
+            output_file: str = None,
+            with_response_header: bool = False,
+            parse_response: bool = True
+    ):
         url = self.base_url + self.endpoint
         json_data = json_data.model_dump(exclude_unset=True) if json_data else None
 
         async with aiohttp.ClientSession() as client:
             async with client.request(method=self.method, url=url, json=json_data) as response:
-                response.raise_for_status()
+                if response.status != 200:
+                    try:
+                        error_text = await response.json()
+                    except:
+                        error_text = await response.text()
+                    raise aiohttp.ClientResponseError(
+                        request_info=response.request_info,
+                        history=response.history,
+                        status=response.status,
+                        message=f"HTTP Error {response.status}. Response Body: {error_text}",
+                        headers=response.headers
+                    )
 
                 # handle stream
                 if response.headers.get('Content-Type') == 'application/x-ndjson':
@@ -37,7 +52,9 @@ class OllamaRequest(BaseModel):
                         async for chunk in response.content:
                             chunk_str = chunk.decode("utf-8")
                             chunk_str = chunk_str.strip()
-                            # response_body.append(json.loads(chunk_str))
+                            response_body.append(json.loads(chunk_str))
+                            if "status" in json.loads(chunk_str):
+                                print(json.loads(chunk_str))
                             if file_handle:
                                 file_handle.write(chunk_str + "\n")
 
@@ -45,6 +62,8 @@ class OllamaRequest(BaseModel):
                         if file_handle:
                             file_handle.close()
 
+                    if parse_response:
+                        response_body = match_response(self, response_body)
                     if with_response_header:
                         return response_body, response.headers
                     else:
@@ -62,16 +81,19 @@ class OllamaRequest(BaseModel):
                         except Exception as e:
                             raise ValueError(f"Invalid to output the response to {output_file}. Error:{e}")
 
+                    if parse_response:
+                        response_body = match_response(self, response_body)
                     if with_response_header:
                         return response_body, response.headers
                     else:
                         return response_body
 
-    async def stream(self,
-                     json_data: OllamaEndpointRequestBody,
-                     verbose: bool = True,
-                     output_file: str = None,
-                     with_response_header: bool = False):
+    async def stream(
+            self,
+            json_data: OllamaEndpointRequestBody,
+            verbose: bool = True,
+            output_file: str = None,
+            with_response_header: bool = False):
 
         if not getattr(json_data, "stream", None):
             raise ValueError("Request does not support stream or is not in stream mode. "
@@ -82,7 +104,19 @@ class OllamaRequest(BaseModel):
 
         async with aiohttp.ClientSession() as client:
             async with client.request(method=self.method, url=url, json=json_data) as response:
-                response.raise_for_status()
+                if response.status != 200:
+                    try:
+                        error_text = await response.json()
+                    except:
+                        error_text = await response.text()
+                    raise aiohttp.ClientResponseError(
+                        request_info=response.request_info,
+                        history=response.history,
+                        status=response.status,
+                        message=f"{error_text}",
+                        headers=response.headers
+                    )
+
                 file_handle = None
 
                 if output_file:

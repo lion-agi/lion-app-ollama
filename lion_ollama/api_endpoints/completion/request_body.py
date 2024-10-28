@@ -55,7 +55,7 @@ class OllamaCompletionRequestBody(OllamaEndpointRequestBody):
                     "prompt in your request to the API"
     )
 
-    keep_alive: str = Field(
+    keep_alive: str | Literal[0] = Field(
         "5m",
         description="Controls how long the model will stay loaded into memory following the request."
     )
